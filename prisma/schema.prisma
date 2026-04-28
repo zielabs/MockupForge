@@ -1,0 +1,180 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(USER)
+
+  accounts     Account[]
+  sessions     Session[]
+  subscription Subscription?
+  projects     Project[]
+  mockupUsages MockupUsage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Subscription {
+  id              String             @id @default(uuid())
+  userId          String             @unique
+  plan            SubscriptionPlan   @default(FREE)
+  status          SubscriptionStatus @default(ACTIVE)
+  mayarLicenseKey String?
+  mayarCustomerId String?
+  startDate       DateTime           @default(now())
+  endDate         DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id                 String        @id @default(uuid())
+  subscriptionId     String
+  amount             Decimal       @db.Decimal(12, 2)
+  currency           String        @default("IDR")
+  status             PaymentStatus @default(PENDING)
+  mayarTransactionId String?
+  mayarOrderId       String?
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model MockupTemplate {
+  id              String          @id @default(uuid())
+  name            String
+  slug            String          @unique
+  category        ProductCategory
+  description     String?
+  thumbnailUrl    String
+  templateFileUrl String
+  designArea      Json
+  isPremium       Boolean         @default(false)
+  sortOrder       Int             @default(0)
+
+  projects Project[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id             String        @id @default(uuid())
+  userId         String
+  templateId     String
+  name           String        @default("Untitled Project")
+  designImageUrl String?
+  designConfig   Json?
+  resultImageUrl String?
+  status         ProjectStatus @default(DRAFT)
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template MockupTemplate @relation(fields: [templateId], references: [id])
+  usage    MockupUsage?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MockupUsage {
+  id          String          @id @default(uuid())
+  userId      String
+  projectId   String          @unique
+  productType ProductCategory
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO_MONTHLY
+  PRO_YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum ProductCategory {
+  TSHIRT
+  HOODIE
+  HAT
+  MUG
+  TUMBLER
+  TOTEBAG
+}
+
+enum ProjectStatus {
+  DRAFT
+  COMPLETED
+}
