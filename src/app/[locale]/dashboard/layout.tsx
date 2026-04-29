@@ -2,11 +2,11 @@
 
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Settings } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Settings, LogOut } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -18,6 +18,8 @@ export default function DashboardLayout({
   const router = useRouter();
   const { data: session, status } = useSession();
   const locale = pathname.startsWith("/en") ? "en" : "id";
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -25,6 +27,22 @@ export default function DashboardLayout({
       router.push(`/${locale}/login`);
     }
   }, [status, router, locale]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const switchLocale = () => {
+    const newLocale = locale === "id" ? "en" : "id";
+    const pathWithoutLocale = pathname.replace(/^\/(id|en)/, "") || "/";
+    router.push(`/${newLocale}${pathWithoutLocale}`);
+  };
 
   if (status === "loading") {
     return (
@@ -96,14 +114,41 @@ export default function DashboardLayout({
           </Link>
         </div>
         <div className="topbar-right">
-          {/* <Link href={`/${locale}/templates`} className="topbar-action btn btn-primary btn-sm">
-            + {locale === "id" ? "Buat Mockup" : "Create Mockup"}
-          </Link> */}
-          {session?.user?.image ? (
-            <img src={session.user.image} alt="" className="topbar-avatar" />
-          ) : (
-            <div className="topbar-avatar-placeholder">
-              {(session?.user?.name || "U").charAt(0).toUpperCase()}
+          <button onClick={switchLocale} className="btn-ghost btn-sm locale-btn" title={locale === "id" ? "Ganti Bahasa" : "Switch Language"}>
+            {locale === "id" ? "🇮🇩 ID" : "🇬🇧 EN"}
+          </button>
+
+          {session?.user && (
+            <div className="user-menu-wrapper" ref={userMenuRef}>
+              <button
+                className="user-avatar-btn"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                aria-label="User menu"
+              >
+                {session.user.image ? (
+                  <img src={session.user.image} alt={session.user.name || ""} className="user-avatar" />
+                ) : (
+                  <div className="user-avatar-placeholder">
+                    {(session.user.name || session.user.email || "U").charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </button>
+
+              {userMenuOpen && (
+                <div className="user-dropdown">
+                  <div className="user-dropdown-header">
+                    <p className="user-dropdown-name">{session.user.name}</p>
+                    <p className="user-dropdown-email">{session.user.email}</p>
+                  </div>
+                  <div className="user-dropdown-divider" />
+                  <button
+                    className="user-dropdown-item user-dropdown-logout"
+                    onClick={() => signOut({ callbackUrl: `/${locale}` })}
+                  >
+                    <LogOut size={16} /> {locale === "id" ? "Keluar" : "Logout"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -187,24 +232,111 @@ export default function DashboardLayout({
           align-items: center;
           gap: var(--space-md);
         }
-        .topbar-avatar {
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 2px solid var(--border-light);
+        .locale-btn {
+          font-size: 0.813rem;
+          padding: 0.4rem 0.75rem;
+          border-radius: var(--radius-full);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          cursor: pointer;
+          transition: all var(--transition-fast);
         }
-        .topbar-avatar-placeholder {
-          width: 34px;
-          height: 34px;
+        .locale-btn:hover {
+          border-color: var(--primary);
+          background: rgba(108, 92, 231, 0.05);
+        }
+        .user-menu-wrapper {
+          position: relative;
+        }
+        .user-avatar-btn {
+          width: 38px;
+          height: 38px;
           border-radius: 50%;
+          overflow: hidden;
+          border: 2px solid var(--border);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+          padding: 0;
+          background: none;
+        }
+        .user-avatar-btn:hover {
+          border-color: var(--primary);
+          box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+        }
+        .user-avatar {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .user-avatar-placeholder {
+          width: 100%;
+          height: 100%;
           display: flex;
           align-items: center;
           justify-content: center;
           background: var(--primary-gradient);
           color: white;
           font-weight: 700;
+          font-size: 0.938rem;
+        }
+        .user-dropdown {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          width: 260px;
+          background: white;
+          border-radius: var(--radius-xl);
+          border: 1px solid var(--border-light);
+          box-shadow: var(--shadow-xl);
+          overflow: hidden;
+          animation: slideDown 0.2s var(--ease-out);
+          z-index: 100;
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .user-dropdown-header {
+          padding: var(--space-md) var(--space-lg);
+        }
+        .user-dropdown-name {
+          font-weight: 700;
+          font-size: 0.938rem;
+          color: var(--text);
+        }
+        .user-dropdown-email {
+          font-size: 0.813rem;
+          color: var(--text-muted);
+          margin-top: 2px;
+        }
+        .user-dropdown-divider {
+          height: 1px;
+          background: var(--border-light);
+        }
+        .user-dropdown-item {
+          display: flex;
+          align-items: center;
+          gap: var(--space-sm);
+          padding: 0.625rem var(--space-lg);
           font-size: 0.875rem;
+          color: var(--text-secondary);
+          transition: all var(--transition-fast);
+          width: 100%;
+          text-align: left;
+          background: none;
+          cursor: pointer;
+          border: none;
+        }
+        .user-dropdown-item:hover {
+          background: var(--bg-secondary);
+          color: var(--primary);
+        }
+        .user-dropdown-logout {
+          color: var(--error);
+        }
+        .user-dropdown-logout:hover {
+          background: rgba(255, 107, 107, 0.06);
+          color: var(--error);
         }
         .dashboard-body {
           display: flex;

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const amount = isYearly ? 499000 : 49000;
     const name = isYearly ? "MockupForge Pro Yearly" : "MockupForge Pro Monthly";
 
-    const response = await fetch("https://api.mayar.id/hl/v1/payment/create", {
+    const response = await fetch("https://api.mayar.club/hl/v1/payment/create", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.MAYAR_API_KEY}`,
