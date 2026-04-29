@@ -1,9 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useState } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
@@ -18,7 +20,44 @@ const fadeInUp = {
 export default function PricingPage() {
   const t = useTranslations("pricing");
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  
   const locale = pathname.startsWith("/en") ? "en" : "id";
+
+  const handleCheckout = async (planKey: string) => {
+    if (planKey === "free") {
+      router.push(`/${locale}/dashboard`);
+      return;
+    }
+
+    if (status !== "authenticated") {
+      router.push(`/${locale}/login`);
+      return;
+    }
+
+    try {
+      setLoadingPlan(planKey);
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planKey }),
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert("Failed to initiate checkout");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Checkout error");
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
 
   const plans = [
     {
@@ -131,9 +170,14 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href={`/${locale}/login`} className={`btn ${plan.ctaStyle}`} style={{ width: "100%" }}>
-                  {plan.cta}
-                </Link>
+                <button 
+                  onClick={() => handleCheckout(plan.key)} 
+                  className={`btn ${plan.ctaStyle}`} 
+                  style={{ width: "100%", opacity: loadingPlan === plan.key ? 0.7 : 1 }}
+                  disabled={loadingPlan === plan.key}
+                >
+                  {loadingPlan === plan.key ? "Loading..." : plan.cta}
+                </button>
               </motion.div>
             ))}
           </div>

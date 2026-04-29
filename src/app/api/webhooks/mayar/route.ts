@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     switch (event) {
       case "payment.success": {
-        const { email, transaction_id, order_id, amount, plan_code } = data;
+        const { email, transaction_id, order_id, amount, plan_code, customer_id, license_key, metadata } = data;
 
         // Find user by email
         const user = await prisma.user.findUnique({
@@ -31,8 +31,15 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        // Determine plan from Mayar plan_code
-        const plan = plan_code?.includes("yearly") ? "PRO_YEARLY" : "PRO_MONTHLY";
+        // Determine plan from Mayar plan_code, metadata, or amount fallback
+        let plan: any = "PRO_MONTHLY";
+        if (plan_code) {
+          plan = plan_code.includes("yearly") ? "PRO_YEARLY" : "PRO_MONTHLY";
+        } else if (metadata?.plan_code) {
+          plan = metadata.plan_code;
+        } else if (amount) {
+          plan = amount >= 400000 ? "PRO_YEARLY" : "PRO_MONTHLY";
+        }
         const endDate = new Date();
         if (plan === "PRO_YEARLY") {
           endDate.setFullYear(endDate.getFullYear() + 1);
