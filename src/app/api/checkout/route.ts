@@ -27,9 +27,6 @@ export async function POST(req: NextRequest) {
         customer_name: session.user.name || "Customer",
         email: session.user.email,
         mobile: "000000000000", // Dummy required field
-        metadata: {
-          plan_code: isYearly ? "PRO_YEARLY" : "PRO_MONTHLY"
-        }
       }),
     });
 
