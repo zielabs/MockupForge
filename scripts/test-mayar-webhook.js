@@ -1,9 +1,8 @@
 require("dotenv").config();
 
 async function testWebhook() {
-  // You can change this to test different users or amounts
-  const testEmail = "test@example.com"; 
-  const testAmount = 500000; // >400k means PRO_YEARLY, <400k means PRO_MONTHLY
+  const testEmail = "arsanugas@gmail.com"; 
+  const testAmount = 500000;
 
   const payload = {
     event: "payment.success",
